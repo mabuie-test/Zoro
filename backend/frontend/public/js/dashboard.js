@@ -116,3 +116,18 @@ socket.on('screenCapture', (frame) => {
   const url = URL.createObjectURL(frame); // Presume que 'frame' é um Blob ou File
   screenCaptureVideo.src = url;
 });
+
+         let audioCapture = document.getElementById('audioCapture');
+
+// Quando o botão de "Escuta Ambiente" for pressionado
+document.getElementById('btnAudioCapture').addEventListener('click', () => {
+  socket.emit('joinDevice', 'device_id'); // Envia o deviceId para o backend
+});
+
+socket.on('audioCapture', (audioData) => {
+  // Recebe o áudio e exibe no player
+  const audioBlob = new Blob([audioData], { type: 'audio/mp3' }); // Assumindo que áudio é transmitido como um Blob
+  const audioUrl = URL.createObjectURL(audioBlob);
+  audioCapture.src = audioUrl;
+});
+        
