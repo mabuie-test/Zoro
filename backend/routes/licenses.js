@@ -1,74 +1,65 @@
 const express = require('express');
 const router = express.Router();
 const License = require('../models/License');
-const Device = require('../models/Device');
 const User = require('../models/User');
 const auth = require('../middleware/authMiddleware');
 const crypto = require('crypto');
 
-// Admin: generate key (protected for admin role).
-// For simplicity in this scaffold we check req.userId and user.role manually in admin route registration
+// Admin: Gerar uma chave de ativação
 router.post('/generate', auth, async (req, res) => {
   try {
-    // only admin users allowed: fetch user role
+    // Verifica se o usuário é admin
     const u = await User.findById(req.userId);
     if (!u || u.role !== 'admin') return res.status(403).json({ error: 'admin only' });
 
     const { generatedForEmail, deviceId } = req.body;
-    // generate secure key
-    const key = crypto.randomBytes(12).toString('hex'); // 24 chars
-    const expiresAt = null; // not active until consumed
-    const lic = new License({ key, generatedForEmail, deviceId, active: true });
-    await lic.save();
-    res.json({ ok: true, key, license: lic });
-  } catch (e) { console.error(e); res.status(500).json({ error: 'internal' }); }
+    const key = crypto.randomBytes(12).toString('hex'); // Gera uma chave de 24 caracteres
+
+    const license = new License({ key, generatedForEmail, deviceId, active: true });
+    await license.save();
+
+    res.json({ ok: true, key, license });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Erro ao gerar chave' });
+  }
 });
 
-// Validate key when user inserts into system (binds to user and set expiresAt = now + 1 month)
+// Validar chave de ativação
 router.post('/validate', auth, async (req, res) => {
   try {
     const { key, deviceId } = req.body;
-    if (!key) return res.status(400).json({ error: 'key required' });
-    const lic = await License.findOne({ key, active: true });
-    if (!lic) return res.status(400).json({ error: 'invalid key' });
+    const license = await License.findOne({ key, active: true });
+    if (!license) return res.status(400).json({ error: 'Chave inválida' });
 
-    // optionally check deviceId matches license.deviceId when admin pre-bound in generation
-    if (lic.deviceId && deviceId && lic.deviceId !== deviceId) {
-      return res.status(400).json({ error: 'key not valid for this device' });
-    }
+    // Se a chave for válida, ativa o dispositivo
+    license.usedByUserId = req.userId;
+    license.activatedAt = new Date();
+    const expiresAt = new Date();
+    expiresAt.setMonth(expiresAt.getMonth() + 1);
+    license.expiresAt = expiresAt;
+    license.active = false; // Chave única, não pode ser usada novamente
 
-    // activate license: set usedByUserId and expiresAt
-    lic.usedByUserId = req.userId;
-    lic.activatedAt = new Date();
-    const e = new Date();
-    e.setMonth(e.getMonth() + 1);
-    lic.expiresAt = e;
-    lic.active = false; // single-use
-    await lic.save();
+    await license.save();
 
-    // if deviceId provided, bind device to user and mark activated
+    // Se o deviceId for fornecido, ativa o dispositivo
     if (deviceId) {
-      let dev = await Device.findOne({ deviceId });
-      if (!dev) {
-        dev = new Device({ deviceId, ownerId: req.userId, activated: true, lastSeen: new Date() });
+      let device = await Device.findOne({ deviceId });
+      if (!device) {
+        device = new Device({ deviceId, ownerId: req.userId, activated: true, lastSeen: new Date() });
       } else {
-        dev.ownerId = req.userId;
-        dev.activated = true;
-        dev.lastSeen = new Date();
+        device.ownerId = req.userId;
+        device.activated = true;
+        device.lastSeen = new Date();
       }
-      await dev.save();
+      await device.save();
     }
 
-    res.json({ ok: true, message: 'license validated', expiresAt: lic.expiresAt });
-  } catch (e) { console.error(e); res.status(500).json({ error: 'internal' }); }
-});
-
-// admin route: list keys
-router.get('/list', auth, async (req, res) => {
-  const u = await User.findById(req.userId);
-  if (!u || u.role !== 'admin') return res.status(403).json({ error: 'admin only' });
-  const items = await License.find().sort({ createdAt: -1 }).limit(500);
-  res.json(items);
+    res.json({ ok: true, message: 'Licença ativada', expiresAt });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Erro ao validar chave' });
+  }
 });
 
 module.exports = router;
