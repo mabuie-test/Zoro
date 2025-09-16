@@ -4,6 +4,7 @@
   "description": "MonitorSystem backend (consent-first scaffold)",
   "main": "server.js",
   "scripts": {
+    "build": "echo \"skip build step\"",
     "start": "node server.js",
     "dev": "nodemon server.js"
   },
