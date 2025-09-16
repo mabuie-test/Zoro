@@ -101,3 +101,18 @@ async function loadMedia() {
 }
 
 window.addEventListener('load', init);
+
+let socket = io();
+let screenCaptureVideo = document.getElementById('screenCapture');
+
+document.getElementById('btnScreenCapture').addEventListener('click', () => {
+  // Quando o botão de Captura de Tela for pressionado
+  socket.emit('joinDevice', 'device_id'); // Enviar o deviceId, aqui 'device_id' é um exemplo
+});
+
+socket.on('screenCapture', (frame) => {
+  // Recebe o frame da captura de tela do backend
+  // Aqui vamos exibir o frame no vídeo.
+  const url = URL.createObjectURL(frame); // Presume que 'frame' é um Blob ou File
+  screenCaptureVideo.src = url;
+});
