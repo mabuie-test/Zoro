@@ -6,6 +6,9 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const { connect } = require('./config/db');
 const mongoose = require('mongoose');
+// no topo do server.js já tens outros requires
+const adminRouter = require('./routes/admin');
+
 
 // suppress strictQuery noise (already set in config but safe)
 mongoose.set('strictQuery', false);
@@ -39,6 +42,8 @@ app.use('/api/data', dataRouter);
 app.use('/api/media', mediaRouter);
 app.use('/api/licenses', licensesRouter);
 
+// depois de app.use('/api/licenses', licensesRouter);
+app.use('/api/admin', adminRouter);
 // health
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 
