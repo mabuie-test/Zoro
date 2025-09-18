@@ -1,0 +1,33 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"/><title>Product Key</title><link rel="stylesheet" href="/css/style.css" /></head>
+<body>
+  <div class="card">
+    <h2>Inserir Product Key</h2>
+    <p>Insira o deviceId e a chave recebida pelo contato.</p>
+    <input id="deviceId" placeholder="DeviceId (ex: ANDROID_ID)" />
+    <input id="key" placeholder="Product Key" />
+    <button id="btnValidate" type="button">Validar Chave</button>
+    <div id="msg"></div>
+    <h3>Como comprar</h3>
+    <p>Contate via WhatsApp: <strong>+55 99 99999-9999</strong>. Após confirmação geramos a chave manualmente.</p>
+    <p><a href="/dashboard.html">Voltar</a></p>
+  </div>
+
+<script>
+const token = localStorage.getItem('token');
+if (!token) { window.location = '/'; }
+document.getElementById('btnValidate').addEventListener('click', async () => {
+  const deviceId = document.getElementById('deviceId').value.trim();
+  const key = document.getElementById('key').value.trim();
+  const r = await fetch('/api/licenses/validate', {
+    method: 'POST',
+    headers: { 'Content-Type':'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify({ key, deviceId })
+  });
+  const j = await r.json();
+  document.getElementById('msg').innerText = r.ok ? ('Ativado até: ' + new Date(j.expiresAt).toLocaleString()) : (j.error || 'Erro');
+});
+</script>
+</body>
+</html>
