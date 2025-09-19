@@ -1,0 +1,77 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Admin Panel</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="card">
+    <h2>Painel Admin</h2>
+    <p id="adminInfo"></p>
+    <h3>Gerar Product Key</h3>
+    <input id="genEmail" placeholder="Email do cliente (opcional)" />
+    <input id="genDeviceId" placeholder="DeviceId (opcional)" />
+    <button id="btnGenerate" type="button">Gerar chave</button>
+    <div id="genResult"></div>
+
+    <h3>Listar Licenças</h3>
+    <button id="btnList" type="button">Listar</button>
+    <ul id="licList"></ul>
+
+    <p><a href="/dashboard.html">Ir para Dashboard</a></p>
+    <p><button id="btnLogout" type="button">Logout</button></p>
+  </div>
+
+<script>
+const token = localStorage.getItem('token');
+if (!token) { window.location = '/'; }
+
+async function api(path, opts = {}) {
+  opts.headers = Object.assign({'Authorization':'Bearer ' + token, 'Content-Type':'application/json'}, opts.headers || {});
+  if (opts.body && typeof opts.body !== 'string') opts.body = JSON.stringify(opts.body);
+  const r = await fetch('/api/' + path, opts);
+  const j = await r.json().catch(()=>({}));
+  return { ok: r.ok, status: r.status, body: j };
+}
+
+// show admin info
+(async function(){
+  // decode token payload to show email/role quickly
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    document.getElementById('adminInfo').innerText = 'Logged as: ' + (payload.email || '') + ' (' + (payload.role || '') + ')';
+  } catch(e){}
+})();
+
+document.getElementById('btnGenerate').addEventListener('click', async () => {
+  const generatedForEmail = document.getElementById('genEmail').value.trim();
+  const deviceId = document.getElementById('genDeviceId').value.trim();
+  const { ok, body } = await api('licenses/generate', { method: 'POST', body: { generatedForEmail: generatedForEmail || undefined, deviceId: deviceId || undefined } });
+  if (ok) {
+    document.getElementById('genResult').innerText = 'Chave: ' + (body.key || JSON.stringify(body));
+  } else {
+    document.getElementById('genResult').innerText = 'Erro: ' + (body.error || JSON.stringify(body));
+  }
+});
+
+document.getElementById('btnList').addEventListener('click', async () => {
+  const { ok, body } = await api('licenses/list', { method: 'GET' });
+  const ul = document.getElementById('licList');
+  ul.innerHTML = '';
+  if (ok && Array.isArray(body)) {
+    body.forEach(l => {
+      const li = document.createElement('li');
+      li.textContent = `${l.key} - ${l.generatedForEmail || ''} - active:${l.active} - expires:${l.expiresAt || ''}`;
+      ul.appendChild(li);
+    });
+  } else {
+    ul.innerHTML = '<li>Erro ao listar</li>';
+  }
+});
+
+document.getElementById('btnLogout').addEventListener('click', () => { localStorage.removeItem('token'); window.location = '/'; });
+</script>
+</body>
+</html>
